@@ -5,7 +5,7 @@
 Models for user, blog, comment.
 '''
 
-__author__ = 'Dong Li'
+__author__ = 'Dong Li 李栋'
 
 import time, uuid
 

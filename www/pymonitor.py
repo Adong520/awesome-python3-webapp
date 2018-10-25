@@ -1,7 +1,7 @@
 
 # -*- coding: utf-8 -*-
 
-__author__ = 'Dong Li'
+__author__ = 'Dong Li 李栋'
 
 import os, sys, time, subprocess
 

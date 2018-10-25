@@ -1,13 +1,15 @@
 
 # -*- coding: utf-8 -*-
 
-__author__ = 'Dong Li'
+__author__ = 'Dong Li 李栋'
 
 '''
 JSON API definition.
 '''
 
 import json, logging, inspect, functools
+
+
 
 class Page(object):
     '''
@@ -34,6 +36,7 @@ class Page(object):
         return 'item_count: %s, page_count: %s, page_index: %s, page_size: %s, offset: %s, limit: %s' % (self.item_count, self.page_count, self.page_index, self.page_size, self.offset, self.limit)
 
     __repr__ = __str__
+
 
 class APIError(Exception):
     '''
@@ -64,8 +67,12 @@ class APIPermissionError(APIError):
     Indicate the api has no permission.
     '''
     def __init__(self, message=''):
+
+        super(APIPermissionError, self).__init__('permission:forbidden', 'permission', message)
+
         super(APIPermissionError, self).__init__('permission:forbidden', 'permission', message)
 
 if __name__=='__main__':
     import doctest
     doctest.testmod()
+

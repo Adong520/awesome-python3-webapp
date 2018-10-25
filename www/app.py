@@ -1,7 +1,7 @@
 
 # -*- coding: utf-8 -*-
 
-__author__ = 'Dong Li'
+__author__ = 'Dong Li 李栋'
 
 '''
 async web application.
@@ -15,12 +15,17 @@ from datetime import datetime
 from aiohttp import web
 from jinja2 import Environment, FileSystemLoader
 
+
+import orm
+from coroweb import add_routes, add_static
+
 from config import configs
 
 import orm
 from coroweb import add_routes, add_static
 
 from handlers import cookie2user, COOKIE_NAME
+
 
 def init_jinja2(app, **kw):
     logging.info('init jinja2...')
@@ -42,6 +47,31 @@ def init_jinja2(app, **kw):
         for name, f in filters.items():
             env.filters[name] = f
     app['__templating__'] = env
+
+
+async def logger_factory(app, handler):
+    async def logger(request):
+        logging.info('Request: %s %s' % (request.method, request.path))
+        # await asyncio.sleep(0.3)
+        return (await handler(request))
+    return logger
+
+async def data_factory(app, handler):
+    async def parse_data(request):
+        if request.method == 'POST':
+            if request.content_type.startswith('application/json'):
+                request.__data__ = await request.json()
+                logging.info('request json: %s' % str(request.__data__))
+            elif request.content_type.startswith('application/x-www-form-urlencoded'):
+                request.__data__ = await request.post()
+                logging.info('request form: %s' % str(request.__data__))
+        return (await handler(request))
+    return parse_data
+
+async def response_factory(app, handler):
+    async def response(request):
+        logging.info('Response handler...')
+        r = await handler(request)
 
 @asyncio.coroutine
 def logger_factory(app, handler):
@@ -89,6 +119,7 @@ def response_factory(app, handler):
     def response(request):
         logging.info('Response handler...')
         r = yield from handler(request)
+
         if isinstance(r, web.StreamResponse):
             return r
         if isinstance(r, bytes):
@@ -108,12 +139,20 @@ def response_factory(app, handler):
                 resp.content_type = 'application/json;charset=utf-8'
                 return resp
             else:
+
+                resp = web.Response(body=app['__templating__'].get_template(template).render(**r).encode('utf-8'))
+                resp.content_type = 'text/html;charset=utf-8'
+                return resp
+        if isinstance(r, int) and r >= 100 and r < 600:
+            return web.Response(r)
+
                 r['__user__'] = request.__user__
                 resp = web.Response(body=app['__templating__'].get_template(template).render(**r).encode('utf-8'))
                 resp.content_type = 'text/html;charset=utf-8'
                 return resp
         if isinstance(r, int) and t >= 100 and t < 600:
             return web.Response(t)
+
         if isinstance(r, tuple) and len(r) == 2:
             t, m = r
             if isinstance(t, int) and t >= 100 and t < 600:
@@ -127,29 +166,44 @@ def response_factory(app, handler):
 def datetime_filter(t):
     delta = int(time.time() - t)
     if delta < 60:
-        return u'1分钟前'
+        return u'1 minute ago'
     if delta < 3600:
-        return u'%s分钟前' % (delta // 60)
+        return u'%s minutes ago' % (delta // 60)
     if delta < 86400:
-        return u'%s小时前' % (delta // 3600)
+        return u'%s hour(s)ago' % (delta // 3600)
     if delta < 604800:
-        return u'%s天前' % (delta // 86400)
+        return u'%s day(s)ago' % (delta // 86400)
     dt = datetime.fromtimestamp(t)
-    return u'%s年%s月%s日' % (dt.year, dt.month, dt.day)
+    return u'%s-%s-%s' % (dt.day,dt.month,dt.year)
+
+
+async def init(loop):
+    await orm.create_pool(loop=loop, host='127.0.0.1', port=3306, user='root', password='Password1!', db='awesome')
+    app = web.Application(loop=loop, middlewares=[
+        logger_factory, response_factory
 
 @asyncio.coroutine
 def init(loop):
     yield from orm.create_pool(loop=loop, **configs.db)
     app = web.Application(loop=loop, middlewares=[
         logger_factory, auth_factory, response_factory
+
     ])
     init_jinja2(app, filters=dict(datetime=datetime_filter))
     add_routes(app, 'handlers')
     add_static(app)
+
+    srv = await loop.create_server(app.make_handler(), '127.0.0.1', 9000)
+
     srv = yield from loop.create_server(app.make_handler(), '127.0.0.1', 9000)
+
     logging.info('server started at http://127.0.0.1:9000...')
     return srv
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(init(loop))
+
 loop.run_forever()
+
+loop.run_forever()
+

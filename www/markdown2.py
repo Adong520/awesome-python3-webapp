@@ -1397,7 +1397,7 @@ class Markdown(object):
     def _do_headers(self, text):
         # Setext-style headers:
         #     Header 1
-        #     ========
+        #     =
         #
         #     Header 2
         #     --------
